@@ -1,0 +1,25 @@
+# Arquivos temporários do agente
+/temp/*
+!/temp/.gitkeep
+
+# Editor e sistema operacional
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs e saídas geradas
+*.log
+*.tmp
+*.bak
+*.class
+/build/
+/dist/
+
+# Segredos locais
+.env
+.env.*
+!.env.example
