@@ -121,7 +121,7 @@ function Run-PortugolTest {
     # Determine test type and validate
     if ($ExpectedOutput -ne $null) {
         # Positive test: expect specific output
-        if ($cleanOutput -eq $ExpectedOutput) {
+        if ($cleanOutput -ceq $ExpectedOutput) {
             Write-Result $testName $true
             return $true
         } else {
@@ -185,6 +185,33 @@ $testCases = @(
         ExpectedError = "Interpreter not found"
     }
 )
+
+# Gerar e anexar os casos do tokenizador (M1). O autoteste ignora os gerados.
+if (-not $SelfTest) {
+    $builderPath = Join-Path $PSScriptRoot "build-tests.ps1"
+    try {
+        & $builderPath
+    } catch {
+        Write-Host "ERROR: test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+
+    $generatedRoot = "temp/tests"
+    $generated = @(Get-ChildItem -Path $generatedRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($generated.Count -eq 0) {
+        Write-Host "ERROR: no generated test cases found in $generatedRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $generated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$generatedRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
+}
 
 if ($SelfTest) {
     # Este modo deve falhar com exit code 1: comprova que o runner
