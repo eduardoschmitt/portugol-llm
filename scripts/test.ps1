@@ -211,6 +211,32 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+
+    # Gerar e anexar os casos de embeddings (M3). Diretorio proprio para nao
+    # interferir na verificacao de bytes da M1, que varre temp/tests.
+    $embeddingBuilder = Join-Path $PSScriptRoot "build-embedding-tests.ps1"
+    try {
+        & $embeddingBuilder
+    } catch {
+        Write-Host "ERROR: embedding test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+
+    $embeddingRoot = "temp/embedding-tests"
+    $embeddingGenerated = @(Get-ChildItem -Path $embeddingRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($embeddingGenerated.Count -eq 0) {
+        Write-Host "ERROR: no embedding test cases found in $embeddingRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $embeddingGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$embeddingRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {
