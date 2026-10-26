@@ -263,6 +263,32 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+
+    # Gerar e anexar os casos de treinamento (M5). Diretorio proprio para nao
+    # interferir nas verificacoes de bytes das missoes anteriores.
+    $trainingBuilder = Join-Path $PSScriptRoot "build-training-tests.ps1"
+    try {
+        & $trainingBuilder
+    } catch {
+        Write-Host "ERROR: training test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+
+    $trainingRoot = "temp/training-tests"
+    $trainingGenerated = @(Get-ChildItem -Path $trainingRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($trainingGenerated.Count -eq 0) {
+        Write-Host "ERROR: no training test cases found in $trainingRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $trainingGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$trainingRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {
