@@ -237,6 +237,32 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+
+    # Gerar e anexar os casos da rede neural (M4). Diretorio proprio para nao
+    # interferir nas verificacoes de bytes da M1 nem da M3.
+    $networkBuilder = Join-Path $PSScriptRoot "build-network-tests.ps1"
+    try {
+        & $networkBuilder
+    } catch {
+        Write-Host "ERROR: network test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+
+    $networkRoot = "temp/network-tests"
+    $networkGenerated = @(Get-ChildItem -Path $networkRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($networkGenerated.Count -eq 0) {
+        Write-Host "ERROR: no network test cases found in $networkRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $networkGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$networkRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {
