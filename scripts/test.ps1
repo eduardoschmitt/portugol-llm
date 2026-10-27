@@ -289,6 +289,30 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+    # Gerar e anexar os casos de geracao (M6). Diretorio proprio para nao
+    # interferir nas verificacoes de bytes das missoes anteriores.
+    $generationBuilder = Join-Path $PSScriptRoot "build-generation-tests.ps1"
+    try {
+        & $generationBuilder
+    } catch {
+        Write-Host "ERROR: generation test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    $generationRoot = "temp/generation-tests"
+    $generationGenerated = @(Get-ChildItem -Path $generationRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($generationGenerated.Count -eq 0) {
+        Write-Host "ERROR: no generation test cases found in $generationRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $generationGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$generationRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {
