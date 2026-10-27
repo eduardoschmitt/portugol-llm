@@ -313,6 +313,30 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+    # Gerar e anexar os casos de contexto multi-token (M7). Diretorio proprio
+    # para nao interferir nas verificacoes de bytes das missoes anteriores.
+    $contextBuilder = Join-Path $PSScriptRoot "build-context-tests.ps1"
+    try {
+        & $contextBuilder
+    } catch {
+        Write-Host "ERROR: context test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    $contextRoot = "temp/context-tests"
+    $contextGenerated = @(Get-ChildItem -Path $contextRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($contextGenerated.Count -eq 0) {
+        Write-Host "ERROR: no context test cases found in $contextRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $contextGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$contextRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {
