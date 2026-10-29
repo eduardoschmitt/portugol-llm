@@ -337,6 +337,31 @@ if (-not $SelfTest) {
             ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
         }
     }
+
+    # Gerar e anexar os casos do treinamento com corpus textual (M8). Diretorio
+    # proprio para nao interferir nas verificacoes de bytes das missoes anteriores.
+    $corpusBuilder = Join-Path $PSScriptRoot "build-corpus-tests.ps1"
+    try {
+        & $corpusBuilder
+    } catch {
+        Write-Host "ERROR: corpus test builder failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    $corpusRoot = "temp/corpus-tests"
+    $corpusGenerated = @(Get-ChildItem -Path $corpusRoot -Filter "*.expected" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($corpusGenerated.Count -eq 0) {
+        Write-Host "ERROR: no corpus test cases found in $corpusRoot" -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($expectedFile in $corpusGenerated) {
+        $caseName = [IO.Path]::GetFileNameWithoutExtension($expectedFile.Name)
+        $testCases += @{
+            Name = $caseName
+            File = "$corpusRoot/$caseName.por"
+            ExpectedOutput = [IO.File]::ReadAllText($expectedFile.FullName)
+        }
+    }
 }
 
 if ($SelfTest) {

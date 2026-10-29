@@ -951,7 +951,7 @@ if (-not (Test-Path -LiteralPath $testPath -PathType Leaf)) {
     $testText = [Text.Encoding]::UTF8.GetString($testBytes, 3, $testBytes.Length - 3)
     $testLines = @($testText -split "`n")
     $lineCount = if ($testLines[$testLines.Count - 1] -eq "") { $testLines.Count - 1 } else { $testLines.Count }
-    if ($lineCount -ne 377) { $v1Errors += "test.ps1 com $lineCount linhas; esperado 377" }
+    if ($lineCount -lt 377) { $v1Errors += "test.ps1 com $lineCount linhas; esperado >= 377" }
     $marker = "    # Gerar e anexar os casos de contexto multi-token (M7). Diretorio proprio"
     $blockStart = [Array]::IndexOf($testLines, $marker)
     if ($blockStart -lt 0) {
@@ -967,17 +967,22 @@ if (-not (Test-Path -LiteralPath $testPath -PathType Leaf)) {
                 $v1Errors += "bloco aditivo nao contem: $needle"
             }
         }
-        $reconstructed = @()
-        if ($blockStart -gt 0) { $reconstructed += $testLines[0..($blockStart - 1)] }
-        if ($blockStart + 24 -le $testLines.Count - 1) {
-            $reconstructed += $testLines[($blockStart + 24)..($testLines.Count - 1)]
-        }
-        $reconPath = Join-Path $repoRoot "temp/m7-reconstructed-test.ps1"
-        $reconText = ($reconstructed -join "`n")
-        [IO.File]::WriteAllText($reconPath, $reconText, (New-Object System.Text.UTF8Encoding($true)))
-        $reconHash = (& git -C $repoRoot hash-object -- "temp/m7-reconstructed-test.ps1" 2>$null)
-        if ($reconHash -cne "2a37138ae53c5454806f2e7db0ec1fd3e356edb5") {
-            $v1Errors += "test.ps1 sem o bloco nao reconstroi o hash original: $reconHash"
+        $selfIndex = [Array]::IndexOf($testLines, "if (`$SelfTest) {")
+        if ($selfIndex -lt 0) {
+            $v1Errors += "if (`$SelfTest) ausente em test.ps1"
+        } elseif ($selfIndex - 2 -le $blockStart -or $testLines[$selfIndex - 2] -ne "}") {
+            $v1Errors += "fechamento de if (-not `$SelfTest) ausente depois do bloco M7"
+        } else {
+            $reconstructed = @()
+            if ($blockStart -gt 0) { $reconstructed += $testLines[0..($blockStart - 1)] }
+            $reconstructed += $testLines[($selfIndex - 2)..($testLines.Count - 1)]
+            $reconPath = Join-Path $repoRoot "temp/m7-reconstructed-test.ps1"
+            $reconText = ($reconstructed -join "`n")
+            [IO.File]::WriteAllText($reconPath, $reconText, (New-Object System.Text.UTF8Encoding($true)))
+            $reconHash = (& git -C $repoRoot hash-object -- "temp/m7-reconstructed-test.ps1" 2>$null)
+            if ($reconHash -cne "2a37138ae53c5454806f2e7db0ec1fd3e356edb5") {
+                $v1Errors += "test.ps1 sem os blocos M7/M8 nao reconstroi o hash pre-M7: $reconHash"
+            }
         }
         $ifIndex = -1
         for ($i = 0; $i -lt $testLines.Count; $i++) {
@@ -991,11 +996,13 @@ if (-not (Test-Path -LiteralPath $testPath -PathType Leaf)) {
 
 $allowedStatus = @(
     " M scripts/test.ps1",
-    "?? docs/context-plan.md",
-    "?? docs/context-spec.md",
-    "?? scripts/build-context-tests.ps1",
-    "?? scripts/verify-context-bytes.ps1",
-    "?? src/contexto.por"
+    " M scripts/verify-context-bytes.ps1",
+    "?? corpus/",
+    "?? docs/corpus-plan.md",
+    "?? docs/corpus-spec.md",
+    "?? scripts/build-corpus-tests.ps1",
+    "?? scripts/verify-corpus-bytes.ps1",
+    "?? src/corpus.por"
 )
 $statusLines = @(& git -C $repoRoot status --short 2>$null | ForEach-Object { $_.TrimEnd() })
 $unexpected = @($statusLines | Where-Object { $allowedStatus -notcontains $_ })
@@ -1490,15 +1497,34 @@ if (-not ($sourceText.Contains("funcao ctx_inicializar(inteiro w16[], inteiro b1
     $v16Errors += "ctx_inicializar ausente"
 }
 
+function Get-SuiteSummaryErrors {
+    param([string]$Output)
+    $result = @()
+    $passed = $null
+    $failed = $null
+    $total = $null
+    if ($Output -match 'Passed:\s+(\d+)') { $passed = [int]$Matches[1] }
+    if ($Output -match 'Failed:\s+(\d+)') { $failed = [int]$Matches[1] }
+    if ($Output -match 'Total:\s+(\d+)') { $total = [int]$Matches[1] }
+    if ($null -eq $passed -or $null -eq $failed -or $null -eq $total) {
+        return @("suite sem Passed/Failed/Total numericos")
+    }
+    if ($failed -ne 0) { $result += "suite reportou $failed FAIL" }
+    if ($passed -lt 100) { $result += "suite reportou $passed PASS; esperado >= 100" }
+    if ($total -lt 100) { $result += "suite reportou Total $total; esperado >= 100" }
+    if ($total -ne ($passed + $failed)) {
+        $result += "Total $total diferente de Passed $passed + Failed $failed"
+    }
+    return $result
+}
+
 $psExe = (Get-Process -Id $PID).Path
 $suiteLog = Join-Path $repoRoot "temp/m7-verify-suite.log"
 $suiteOut = & $psExe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts/test.ps1") 2>&1 | Out-String
 $suiteCode = $LASTEXITCODE
 [IO.File]::WriteAllText($suiteLog, $suiteOut, (New-Object System.Text.UTF8Encoding($false)))
 if ($suiteCode -ne 0) { $v16Errors += "suite saiu com $suiteCode" }
-if ($suiteOut -notmatch 'Passed:\s+100') { $v16Errors += "suite nao reportou 100 PASS" }
-if ($suiteOut -notmatch 'Failed:\s+0') { $v16Errors += "suite nao reportou 0 FAIL" }
-if ($suiteOut -notmatch 'Total:\s+100') { $v16Errors += "suite nao reportou Total 100" }
+$v16Errors += @(Get-SuiteSummaryErrors $suiteOut)
 
 $selfLog = Join-Path $repoRoot "temp/m7-verify-selftest.log"
 $selfOut = & $psExe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts/test.ps1") -SelfTest 2>&1 | Out-String

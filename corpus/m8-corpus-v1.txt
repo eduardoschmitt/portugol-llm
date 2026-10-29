@@ -1,0 +1,5 @@
+programa inicio escreva verdadeiro pare
+funcao inicio escreva falso pare
+se verdadeiro faca escreva pare
+se falso senao leia pare
+enquanto verdadeiro faca leia pare
