@@ -788,7 +788,7 @@ $frozenHashes = [ordered]@{
     "scripts/build-generation-tests.ps1"  = "e712064d631e6fbf2711943ec65da6812223427f"
     "scripts/verify-generation-bytes.ps1" = "e1807a8d6469ecaba0d2ad724c9e58b6a2689b3a"
     "scripts/build-context-tests.ps1"     = "e9dd6d1ba2b54eb4caade4391a3da12cb555f29d"
-    "scripts/verify-context-bytes.ps1"    = "463fe02275926f9942f9b61c506b0ad26450f78c"
+    "scripts/verify-context-bytes.ps1"    = "200b911fd3e15d43df28b1ca1942dc318359bbd7"
 }
 $hashPaths = @($frozenHashes.Keys)
 $actualHashes = @(& git -C $repoRoot hash-object -- $hashPaths 2>$null)
@@ -872,7 +872,16 @@ $allowedStatus = @(
     "?? docs/corpus-spec.md",
     "?? scripts/build-corpus-tests.ps1",
     "?? scripts/verify-corpus-bytes.ps1",
-    "?? src/corpus.por"
+    "?? src/corpus.por",
+    "?? docs/evaluation-plan.md",
+    "?? docs/evaluation-spec.md",
+    "?? scripts/build-evaluation-tests.ps1",
+    "?? scripts/eval-datasets.ps1",
+    "?? scripts/eval-oracle.ps1",
+    "?? scripts/test-evaluation.ps1",
+    "?? scripts/verify-evaluation-bytes.ps1",
+    "?? src/avaliacao.por",
+    " M scripts/verify-corpus-bytes.ps1"
 )
 $statusLines = @(& git -C $repoRoot status --short 2>$null | ForEach-Object { $_.TrimEnd() })
 $unexpected = @($statusLines | Where-Object { $allowedStatus -notcontains $_ })

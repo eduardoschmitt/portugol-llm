@@ -1002,7 +1002,16 @@ $allowedStatus = @(
     "?? docs/corpus-spec.md",
     "?? scripts/build-corpus-tests.ps1",
     "?? scripts/verify-corpus-bytes.ps1",
-    "?? src/corpus.por"
+    "?? src/corpus.por",
+    "?? docs/evaluation-plan.md",
+    "?? docs/evaluation-spec.md",
+    "?? scripts/build-evaluation-tests.ps1",
+    "?? scripts/eval-datasets.ps1",
+    "?? scripts/eval-oracle.ps1",
+    "?? scripts/test-evaluation.ps1",
+    "?? scripts/verify-evaluation-bytes.ps1",
+    "?? src/avaliacao.por",
+    " M scripts/verify-corpus-bytes.ps1"
 )
 $statusLines = @(& git -C $repoRoot status --short 2>$null | ForEach-Object { $_.TrimEnd() })
 $unexpected = @($statusLines | Where-Object { $allowedStatus -notcontains $_ })
